@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.12']
+        julia-version: ['1']
     steps:
     - uses: actions/checkout@v4
     - uses: webfactory/ssh-agent@v0.9.0
@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.12']
+        julia-version: ['1']
     steps:
     - uses: actions/checkout@v4
     - name: Windows SSH Key workarounds # A horrible hack, see https://github.com/webfactory/ssh-agent/issues/148#issuecomment-2602109257
@@ -77,12 +77,37 @@ jobs:
         cp bin/libMad.dll.a lib/Mad.lib
 
   build_apple:
-    name: Build binaries - mac-latest
+    name: Build binaries - macos-latest
     runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.12']
+        julia-version: ['1']
+    steps:
+    - uses: actions/checkout@v4
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    - uses: julia-actions/install-juliaup@v2
+      with:
+        channel: ${{ matrix.julia-version }}
+    - name: Patch out GPU support
+      shell: bash
+      run: git apply no_gpu_patches/no_gpu.patch
+    - name: install JuliaC
+      run: julia -e 'using Pkg; Pkg.add(name="JuliaC", version="0.3.8"); Pkg.Apps.add(name="JuliaC", version="0.3.8")'
+    - name: add JuliaC to path
+      run: echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
+    - name: build libMad
+      run: mkdir build && cd build && mkdir install && cmake .. -DCMAKE_INSTALL_PREFIX="install" && cmake --build . --target install --config Release
+
+  build_apple_intel:
+    name: Build binaries - macos-26-intel
+    runs-on: macos-26-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1']
     steps:
     - uses: actions/checkout@v4
     - uses: webfactory/ssh-agent@v0.9.0
