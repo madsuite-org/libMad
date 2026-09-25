@@ -132,3 +132,39 @@ jobs:
         asset_name: libMad-apple-aarch64-${{ github.ref_name }}.tar.gz
         tag: ${{ github.ref }}
         body: "Release ${{ github.ref_name }}"
+
+  build_apple_intel:
+    name: Build binaries - macos-26-intel
+    runs-on: macos-26-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1']
+    steps:
+    - uses: actions/checkout@v4
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    - uses: julia-actions/install-juliaup@v2
+      with:
+        channel: ${{ matrix.julia-version }}
+    - name: Patch out GPU support
+      shell: bash
+      run: git apply no_gpu_patches/no_gpu.patch
+    - name: install JuliaC
+      run: julia -e 'using Pkg; Pkg.add(name="JuliaC", version="0.3.8"); Pkg.Apps.add(name="JuliaC", version="0.3.8")'
+    - name: add JuliaC to path
+      run: echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
+    - name: build libMad
+      run: mkdir build && cd build && mkdir install && cmake .. -DCMAKE_INSTALL_PREFIX="libMad-apple-x86_64-${{ github.ref_name }}" && cmake --build . --target install --config Release
+    - name: tar output
+      run: |
+        cd build && tar -czf ../libMad-apple-x86_64-${{ github.ref_name }}.tar.gz libMad-apple-x86_64-${{ github.ref_name }}
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: libMad-apple-x86_64-${{ github.ref_name }}.tar.gz
+        asset_name: libMad-apple-x86_64-${{ github.ref_name }}.tar.gz
+        tag: ${{ github.ref }}
+        body: "Release ${{ github.ref_name }}"
